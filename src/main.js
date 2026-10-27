@@ -1,5 +1,5 @@
 import { registerSW } from 'virtual:pwa-register';
-import { sessaoAtual } from './db.js';
+import { db, sessaoAtual, acessoLiberado } from './db.js';
 import { aviso } from './util.js';
 import login from './views/login.js';
 import hoje from './views/hoje.js';
@@ -21,6 +21,27 @@ async function render() {
   if (!sessao) {
     nav.hidden = true;
     return login(tela);
+  }
+
+  const liberado = await acessoLiberado().catch(() => null);
+  if (liberado === false) {
+    nav.hidden = true;
+    const email = sessao.user?.email || 'esta conta';
+    tela.innerHTML = `
+      <section class="login">
+        <div class="marca">
+          <img src="/icons/icon-192.png" alt="">
+          <div><h1>Acesso pendente</h1><p class="sub">${email.replace(/[<>&"]/g, '')} ainda não foi liberado na Arca.</p></div>
+        </div>
+        <p class="sub">Peça ao dono da Arca para autorizar este e-mail. Se você entrou com e-mail e senha, o endereço também precisa estar confirmado.</p>
+        <button type="button" class="btn" id="sair">Sair</button>
+      </section>`;
+    tela.querySelector('#sair').addEventListener('click', async () => {
+      await db.auth.signOut();
+      location.hash = '#/';
+      render();
+    });
+    return;
   }
   const rota = rotas[nome] ? nome : 'hoje';
   if (!rotas[nome]) history.replaceState(null, '', '#/hoje');
