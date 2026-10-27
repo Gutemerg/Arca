@@ -245,6 +245,7 @@ function cartaoBanco(bancos) {
         <div class="linha">
           <span class="col"><span class="t">${esc(b.apelido || 'Conta corrente')}</span>
           <span class="mini ${b.ultimo_erro ? 'atencao' : ''}">${b.ultimo_erro ? 'erro: ' + esc(b.ultimo_erro) : 'atualizada ' + quandoSync(b.ultima_sync)}</span></span>
+          <button type="button" class="btn pequeno" data-banco="${b.id}">Trocar</button>
         </div>`).join('')}
       <div class="linha" style="min-height:44px"><button type="button" class="btn pequeno" id="conectar-banco">+ Outra conta</button></div>
     </section>`;
@@ -290,6 +291,31 @@ function ligarBanco(tela, bancos) {
     await sincronizar(null);
     recarregar();
   });
+
+  tela.querySelectorAll('[data-banco]').forEach((botao) => botao.addEventListener('click', async () => {
+    const b = bancos.find((x) => x.id === botao.dataset.banco);
+    const v = await folha(`
+      <h2>Trocar conta bancária</h2>
+      <p class="mini" style="margin:0;line-height:1.5">Para trocar de banco, conecte o novo em <a href="https://meu.pluggy.ai" target="_blank" rel="noopener">meu.pluggy.ai</a>, copie o novo Item ID no painel da Pluggy (Ir para Demo → Copiar Item ID) e cole aqui. Os lançamentos já importados continuam na Arca.</p>
+      <form class="form">
+        <div class="campo"><label for="t-item">Item ID</label><input id="t-item" name="item_id" value="${esc(b.item_id)}" required autocomplete="off" spellcheck="false"></div>
+        <div class="campo"><label for="t-nome">Apelido</label><input id="t-nome" name="apelido" value="${esc(b.apelido || '')}" placeholder="Ex.: Nubank"></div>
+        <label class="mini" style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="remover" value="1"> Desconectar esta conta (para de sincronizar)</label>
+        <div class="grade-2"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn primario">Salvar</button></div>
+      </form>`);
+    if (!v) return;
+    if (v.remover) {
+      await q(db.from('banco_conexoes').delete().eq('id', b.id));
+      aviso('Conta desconectada. Os lançamentos já importados foram mantidos.');
+      return recarregar();
+    }
+    const novoItem = v.item_id.trim();
+    const mudou = novoItem !== b.item_id;
+    // Ao trocar o Item ID, recomeça de onde parou (os repetidos são descartados na sincronização)
+    await q(db.from('banco_conexoes').update({ item_id: novoItem, apelido: v.apelido?.trim() || null, ultimo_erro: null }).eq('id', b.id));
+    if (mudou) { aviso('Conta trocada. Sincronizando…'); await sincronizar(null); }
+    recarregar();
+  }));
 
   // Sincroniza sozinho ao abrir Finanças, no máximo a cada 12 horas
   const velha = bancos.some((b) => !b.ultima_sync || Date.now() - new Date(b.ultima_sync) > HORAS_AUTO * 3600000);
