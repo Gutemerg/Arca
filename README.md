@@ -35,3 +35,17 @@ npm run dev
 - **Finanças**: pizza por categoria, contas com "Paguei" (cria a próxima automaticamente), assinaturas, caixinhas, lançamentos
 - **Documentos**: pastas, validade e aviso 30 dias antes
 - **Salas**: as demais salas já recebem dados pela captura; as telas vêm nas próximas etapas
+
+## Conta bancária (Open Finance)
+
+A Arca puxa a conta corrente pelo **Meu Pluggy** (gratuito para as suas próprias contas).
+
+1. Crie a conta em [pluggy.ai](https://pluggy.ai), crie uma aplicação e adicione o conector **MeuPluggy**.
+2. Em [meu.pluggy.ai](https://meu.pluggy.ai), conecte o banco pelo Open Finance (faça isso durante o teste grátis).
+3. Na Netlify, cadastre `PLUGGY_CLIENT_ID` e `PLUGGY_CLIENT_SECRET` (marque como secretas) e faça um novo deploy.
+4. No painel da Pluggy → aplicação → **Ir para Demo** → autorize o Meu Pluggy → **Copiar Item ID**.
+5. Na Arca, em **Finanças → Conectar conta**, cole o Item ID.
+
+A função `/api/banco-sync` lê só contas correntes, ignora lançamentos pendentes, nunca duplica
+(`externo_id`) e grava com o JWT do usuário, respeitando o RLS. O app sincroniza sozinho ao abrir
+Finanças (no máximo a cada 12 h) e pelo botão **Sincronizar**.

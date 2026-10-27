@@ -1,15 +1,16 @@
-import { db, q } from '../db.js';
+import { db, q, tokenAtual } from '../db.js';
 import { esc, reais, reaisCurto, hojeISO, inicioMesISO, quando, dataCurta, aviso, folha, CORES } from '../util.js';
 
 const recarregar = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
 
 export default async function financas(tela) {
-  const [lancs, contas, assin, caixas, cats] = await Promise.all([
-    q(db.from('lancamentos').select('id,tipo,valor,descricao,data,categorias(nome)').gte('data', inicioMesISO()).order('data', { ascending: false }).order('criado_em', { ascending: false })),
+  const [lancs, contas, assin, caixas, cats, bancos] = await Promise.all([
+    q(db.from('lancamentos').select('id,tipo,valor,descricao,data,origem,conta,categorias(nome)').gte('data', inicioMesISO()).order('data', { ascending: false }).order('criado_em', { ascending: false })),
     q(db.from('contas_pagar').select('id,nome,valor,vencimento,recorrencia,debito_automatico').is('pago_em', null).order('vencimento').limit(8)),
     q(db.from('assinaturas').select('id,nome,valor,ciclo,ultimo_uso').eq('ativa', true).order('valor', { ascending: false })),
     q(db.from('caixinhas').select('id,nome,meta,saldo').order('criado_em')),
-    q(db.from('categorias').select('nome,tipo').order('nome'))
+    q(db.from('categorias').select('nome,tipo').order('nome')),
+    q(db.from('banco_conexoes').select('id,item_id,apelido,ultima_sync,ultimo_erro').order('criado_em'))
   ]);
 
   const entrou = soma(lancs.filter((l) => l.tipo === 'entrada'));
@@ -42,6 +43,8 @@ export default async function financas(tela) {
         <div style="background:var(--card-2);border-radius:12px;padding:10px 12px"><span class="mini" style="display:block;font-weight:700">Saiu</span><span style="font-size:16px;font-weight:800">${reaisCurto(saiu)}</span></div>
       </div>
     </section>
+
+    ${cartaoBanco(bancos)}
 
     <section class="card" aria-labelledby="h-pizza" style="display:flex;flex-direction:column;gap:14px">
       <div class="cabeca"><h2 id="h-pizza">Para onde foi</h2><span class="mini">${esc(mes)}</span></div>
@@ -91,12 +94,14 @@ export default async function financas(tela) {
     <section class="card lista" aria-labelledby="h-ult">
       <h2 id="h-ult">Lançamentos do mês</h2>
       ${lancs.slice(0, 15).map((l) => `
-        <div class="linha"><span class="col"><span class="t">${esc(l.descricao)}</span><span class="mini">${dataCurta(l.data)} · ${esc(l.categorias?.nome || 'Sem categoria')}</span></span>
+        <div class="linha"><span class="col"><span class="t">${esc(l.descricao)}</span><span class="mini">${dataCurta(l.data)} · ${esc(l.categorias?.nome || 'Sem categoria')}${l.origem === 'banco' ? ' · banco' : ''}</span></span>
         <span style="display:flex;align-items:center;gap:6px"><span class="v ${l.tipo === 'entrada' ? 'ok' : ''}">${l.tipo === 'entrada' ? '+' : '−'} ${reais(l.valor)}</span><button type="button" class="btn-icone" style="width:36px;height:36px;border:0;background:none;color:var(--suave)" data-apagar="${l.id}" aria-label="Apagar ${esc(l.descricao)}">×</button></span></div>`).join('') || '<p class="vazio">Nenhum lançamento neste mês.</p>'}
     </section>
     <datalist id="lista-cats">${cats.map((c) => `<option value="${esc(c.nome)}">`).join('')}</datalist>`;
 
   // ---- Ações ----
+  ligarBanco(tela, bancos);
+
   tela.querySelector('#novo-lanc').addEventListener('click', async () => {
     const v = await folha(`
       <h2>Novo lançamento</h2>
@@ -212,4 +217,84 @@ async function categoria(nome, tipo) {
   if (achou[0]) return achou[0].id;
   const [nova] = await q(db.from('categorias').insert({ nome, tipo }).select('id'));
   return nova.id;
+}
+
+// ============ Conta bancária (Open Finance via Meu Pluggy) ============
+const HORAS_AUTO = 12;
+
+function quandoSync(iso) {
+  if (!iso) return 'ainda não sincronizou';
+  const min = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (min < 1) return 'agora há pouco';
+  if (min < 60) return `há ${min} min`;
+  if (min < 60 * 24) return `há ${Math.round(min / 60)} h`;
+  return 'em ' + dataCurta(new Date(iso).toISOString().slice(0, 10));
+}
+
+function cartaoBanco(bancos) {
+  if (!bancos.length) return `
+    <section class="card" aria-labelledby="h-banco" style="display:flex;flex-direction:column;gap:10px">
+      <h2 id="h-banco">Conta bancária</h2>
+      <p class="mini" style="margin:0;line-height:1.5">Conecte sua conta corrente pelo Open Finance e os gastos entram aqui sozinhos, já separados por categoria.</p>
+      <button type="button" class="btn suave" id="conectar-banco">Conectar conta</button>
+    </section>`;
+  return `
+    <section class="card lista" aria-labelledby="h-banco">
+      <div class="cabeca" style="margin:10px 0 4px"><h2 id="h-banco" style="font-size:15px">Conta bancária</h2><button type="button" class="btn pequeno suave" id="sync-banco">Sincronizar</button></div>
+      ${bancos.map((b) => `
+        <div class="linha">
+          <span class="col"><span class="t">${esc(b.apelido || 'Conta corrente')}</span>
+          <span class="mini ${b.ultimo_erro ? 'atencao' : ''}">${b.ultimo_erro ? 'erro: ' + esc(b.ultimo_erro) : 'atualizada ' + quandoSync(b.ultima_sync)}</span></span>
+        </div>`).join('')}
+      <div class="linha" style="min-height:44px"><button type="button" class="btn pequeno" id="conectar-banco">+ Outra conta</button></div>
+    </section>`;
+}
+
+async function sincronizar(botao) {
+  if (botao) { botao.disabled = true; botao.textContent = 'Sincronizando…'; }
+  try {
+    const token = await tokenAtual();
+    const r = await fetch('/api/banco-sync', { method: 'POST', headers: { authorization: `Bearer ${token}` } });
+    const res = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(res.erro || (res.erros || []).join(' ') || 'Não consegui sincronizar');
+    if (botao || res.novos) aviso(res.novos ? `${res.novos} lançamento(s) novo(s) do banco` : 'Tudo em dia com o banco');
+    if (res.novos) recarregar();
+  } catch (e) {
+    if (botao) aviso(e.message);
+  } finally {
+    if (botao) { botao.disabled = false; botao.textContent = 'Sincronizar'; }
+  }
+}
+
+let autoFeito = false;
+
+function ligarBanco(tela, bancos) {
+  tela.querySelector('#sync-banco')?.addEventListener('click', (e) => sincronizar(e.currentTarget));
+
+  tela.querySelector('#conectar-banco')?.addEventListener('click', async () => {
+    const v = await folha(`
+      <h2>Conectar conta corrente</h2>
+      <ol class="mini" style="margin:0;padding-left:18px;line-height:1.6">
+        <li>Em <a href="https://meu.pluggy.ai" target="_blank" rel="noopener">meu.pluggy.ai</a>, conecte seu banco pelo Open Finance.</li>
+        <li>No painel da Pluggy, abra a sua aplicação → <b>Ir para Demo</b>, autorize o Meu Pluggy e use <b>Copiar Item ID</b>.</li>
+        <li>Cole o Item ID abaixo.</li>
+      </ol>
+      <form class="form">
+        <div class="campo"><label for="b-item">Item ID</label><input id="b-item" name="item_id" required autocomplete="off" spellcheck="false"></div>
+        <div class="campo"><label for="b-nome">Apelido</label><input id="b-nome" name="apelido" placeholder="Ex.: Nubank"></div>
+        <div class="grade-2"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn primario">Conectar</button></div>
+      </form>`);
+    if (!v) return;
+    await q(db.from('banco_conexoes').insert({ item_id: v.item_id.trim(), apelido: v.apelido?.trim() || null }));
+    aviso('Conta conectada. Buscando os últimos 90 dias…');
+    await sincronizar(null);
+    recarregar();
+  });
+
+  // Sincroniza sozinho ao abrir Finanças, no máximo a cada 12 horas
+  const velha = bancos.some((b) => !b.ultima_sync || Date.now() - new Date(b.ultima_sync) > HORAS_AUTO * 3600000);
+  if (bancos.length && velha && !autoFeito) {
+    autoFeito = true;
+    sincronizar(null);
+  }
 }

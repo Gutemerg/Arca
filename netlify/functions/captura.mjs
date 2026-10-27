@@ -1,12 +1,7 @@
 // Netlify Function — interpreta uma frase livre e devolve o registro estruturado.
 import { capturar } from '../../lib/captura.js';
 
-const env = {
-  get NEON_AUTH_JWKS_URL() { return Netlify.env.get('NEON_AUTH_JWKS_URL'); },
-  get ANTHROPIC_API_KEY() { return Netlify.env.get('ANTHROPIC_API_KEY'); },
-  get ARCA_MODELO() { return Netlify.env.get('ARCA_MODELO'); },
-  get NEON_DATA_API_URL() { return Netlify.env.get('NEON_DATA_API_URL') || Netlify.env.get('VITE_NEON_DATA_API_URL'); }
-};
+const env = new Proxy({}, { get: (_, k) => Netlify.env.get(String(k)) });
 
 export default async (req) => {
   if (req.method !== 'POST') return Response.json({ erro: 'Use POST' }, { status: 405 });
