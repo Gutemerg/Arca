@@ -3,7 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0E1013">
+  <meta name="theme-color" content="#F4F5F7">
+  <script>
+    // Aplica o tema antes de desenhar a tela (evita piscar)
+    (function () {
+      var t = 'claro';
+      try { t = localStorage.getItem('arca-tema') || 'claro'; } catch (e) {}
+      document.documentElement.dataset.tema = t;
+    })();
+  </script>
   <title>Arca</title>
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">

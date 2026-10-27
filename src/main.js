@@ -1,4 +1,5 @@
 import { registerSW } from 'virtual:pwa-register';
+import './tema.js';
 import { db, sessaoAtual, acessoLiberado } from './db.js';
 import { aviso } from './util.js';
 import login from './views/login.js';

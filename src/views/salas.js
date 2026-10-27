@@ -1,4 +1,5 @@
 import { esc } from '../util.js';
+import { TEMAS, temaAtual, aplicarTema } from '../tema.js';
 
 const ICONES = {
   financas: '<path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1z"/><path d="M4 7l11-3v3M16 13h1"/>',
@@ -36,5 +37,18 @@ export default function salas(tela) {
           ${s.pronta ? '' : '<span class="etiqueta">tela em breve</span>'}
         </a>`).join('')}
     </div>
-    <p class="mini" style="line-height:1.5;margin:0">As salas marcadas como “tela em breve” já guardam dados pela captura. A tela de cada uma chega nas próximas etapas.</p>`;
+    <p class="mini" style="line-height:1.5;margin:0">As salas marcadas como “tela em breve” já guardam dados pela captura. A tela de cada uma chega nas próximas etapas.</p>
+    <section class="card">
+      <h2>Aparência</h2>
+      <div class="chips" role="group" aria-label="Tema" style="margin-top:12px">
+        ${TEMAS.map((t) => `<button type="button" class="chip" data-tema="${t.id}" aria-pressed="${t.id === temaAtual()}">${t.nome}</button>`).join('')}
+      </div>
+    </section>`;
+
+  tela.querySelectorAll('[data-tema]').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      aplicarTema(botao.dataset.tema);
+      tela.querySelectorAll('[data-tema]').forEach((b) => b.setAttribute('aria-pressed', String(b === botao)));
+    });
+  });
 }

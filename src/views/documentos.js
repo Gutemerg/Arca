@@ -18,9 +18,9 @@ export default async function documentos(tela, { params }) {
     </header>
 
     ${vencendo.map((d) => `
-      <div class="card" style="display:flex;gap:12px;align-items:center;background:#241F14;border-color:#4A3B17">
+      <div class="card card-alerta">
         <span class="atencao" aria-hidden="true" style="font-size:18px">!</span>
-        <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:800">${esc(d.nome)} ${quando(d.validade).startsWith('venceu') ? quando(d.validade) : 'vence ' + quando(d.validade)}</span><span class="mini" style="color:#D8C9A4">${esc(PASTAS[d.pasta] || d.pasta)} · ${dataCurta(d.validade)}</span></span>
+        <span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:800">${esc(d.nome)} ${quando(d.validade).startsWith('venceu') ? quando(d.validade) : 'vence ' + quando(d.validade)}</span><span class="mini">${esc(PASTAS[d.pasta] || d.pasta)} · ${dataCurta(d.validade)}</span></span>
       </div>`).join('')}
 
     <section aria-labelledby="h-pastas" style="display:flex;flex-direction:column;gap:10px">
