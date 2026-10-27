@@ -17,16 +17,21 @@ export async function tokenAtual() {
 }
 
 // A conta está na lista de autorizados da Arca? (regra do banco: public.arca_autorizado)
+// Aceita os formatos que a Data API pode devolver: true, "true", [{arca_autorizado:true}] ou {arca_autorizado:true}
+function verdadeiro(v) {
+  if (v === true || v === 'true' || v === 't') return true;
+  if (Array.isArray(v)) return v.length > 0 && verdadeiro(v[0]);
+  if (v && typeof v === 'object') return verdadeiro(v.arca_autorizado);
+  return false;
+}
+
 export async function acessoLiberado() {
-  const token = await tokenAtual();
-  if (!token) return false;
-  const r = await fetch(`${import.meta.env.VITE_NEON_DATA_API_URL}/rpc/arca_autorizado`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-    body: '{}'
-  });
-  if (!r.ok) throw new Error('Não consegui verificar seu acesso');
-  return (await r.json()) === true;
+  const { data, error } = await db.rpc('arca_autorizado');
+  if (error) {
+    console.error('arca_autorizado', error);
+    throw new Error(error.message || 'Não consegui verificar seu acesso');
+  }
+  return verdadeiro(data);
 }
 
 // Atalho: lança erro se a consulta falhar

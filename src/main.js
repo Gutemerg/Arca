@@ -24,7 +24,9 @@ async function render() {
     return login(tela);
   }
 
-  const liberado = await acessoLiberado().catch(() => null);
+  let liberado = null, motivo = '';
+  try { liberado = await acessoLiberado(); }
+  catch (e) { liberado = false; motivo = e.message; }
   if (liberado === false) {
     nav.hidden = true;
     const email = sessao.user?.email || 'esta conta';
@@ -35,8 +37,11 @@ async function render() {
           <div><h1>Acesso pendente</h1><p class="sub">${email.replace(/[<>&"]/g, '')} ainda não foi liberado na Arca.</p></div>
         </div>
         <p class="sub">Peça ao dono da Arca para autorizar este e-mail. Se você entrou com e-mail e senha, o endereço também precisa estar confirmado.</p>
+        ${motivo ? `<p class="mini">Detalhe técnico: ${motivo.replace(/[<>&"]/g, '')}</p>` : ''}
+        <button type="button" class="btn" id="tentar">Tentar de novo</button>
         <button type="button" class="btn" id="sair">Sair</button>
       </section>`;
+    tela.querySelector('#tentar').addEventListener('click', () => render());
     tela.querySelector('#sair').addEventListener('click', async () => {
       await db.auth.signOut();
       location.hash = '#/';
