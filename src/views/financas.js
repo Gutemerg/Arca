@@ -277,21 +277,10 @@ let autoFeito = false;
 function ligarBanco(tela, bancos) {
   tela.querySelector('#sync-banco')?.addEventListener('click', (e) => sincronizar(e.currentTarget));
 
-  tela.querySelector('#conectar-banco')?.addEventListener('click', async () => {
-    const v = await folha(`
-      <h2>Conectar conta corrente</h2>
-      <ol class="mini" style="margin:0;padding-left:18px;line-height:1.6">
-        <li>Em <a href="https://meu.pluggy.ai" target="_blank" rel="noopener">meu.pluggy.ai</a>, conecte seu banco pelo Open Finance.</li>
-        <li>No painel da Pluggy, abra a sua aplicação → <b>Ir para Demo</b>, autorize o Meu Pluggy e use <b>Copiar Item ID</b>.</li>
-        <li>Cole o Item ID abaixo.</li>
-      </ol>
-      <form class="form">
-        <div class="campo"><label for="b-item">Item ID</label><input id="b-item" name="item_id" required autocomplete="off" spellcheck="false"></div>
-        <div class="campo"><label for="b-nome">Apelido</label><input id="b-nome" name="apelido" placeholder="Ex.: Nubank"></div>
-        <div class="grade-2"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn primario">Conectar</button></div>
-      </form>`);
-    if (!v) return;
-    await q(db.from('banco_conexoes').insert({ item_id: v.item_id.trim(), apelido: v.apelido?.trim() || null }));
+  tela.querySelector('#conectar-banco')?.addEventListener('click', async (e) => {
+    const item = await abrirPluggy(e.currentTarget);
+    if (!item) return;
+    await q(db.from('banco_conexoes').upsert({ item_id: item.id, apelido: item.apelido }, { onConflict: 'user_id,item_id' }));
     aviso('Conta conectada. Buscando os últimos 90 dias…');
     await sincronizar(null);
     recarregar();
@@ -299,24 +288,38 @@ function ligarBanco(tela, bancos) {
 
   tela.querySelectorAll('[data-banco]').forEach((botao) => botao.addEventListener('click', async () => {
     const b = bancos.find((x) => x.id === botao.dataset.banco);
-    const v = await folha(`
-      <h2>Trocar conta bancária</h2>
-      <p class="mini" style="margin:0;line-height:1.5">Para trocar de banco, conecte o novo em <a href="https://meu.pluggy.ai" target="_blank" rel="noopener">meu.pluggy.ai</a>, copie o novo Item ID no painel da Pluggy (Ir para Demo → Copiar Item ID) e cole aqui. Os lançamentos já importados continuam na Arca.</p>
+    const resposta = folha(`
+      <h2>${esc(b.apelido || 'Conta bancária')}</h2>
+      <p class="mini" style="margin:0;line-height:1.5">Para trocar de banco ou refazer a conexão, toque em <b>Reconectar</b>: a janela da Pluggy abre aqui mesmo. Os lançamentos já importados continuam na Arca.</p>
+      <button type="button" class="btn primario" id="reconectar" data-fechar>Reconectar pela Arca</button>
       <form class="form">
-        <div class="campo"><label for="t-item">Item ID</label><input id="t-item" name="item_id" value="${esc(b.item_id)}" required autocomplete="off" spellcheck="false"></div>
-        <div class="campo"><label for="t-nome">Apelido</label><input id="t-nome" name="apelido" value="${esc(b.apelido || '')}" placeholder="Ex.: Nubank"></div>
+        <div class="campo"><label for="t-nome">Apelido</label><input id="t-nome" name="apelido" value="${esc(b.apelido || '')}" placeholder="Ex.: Itaú"></div>
+        <details class="mini"><summary>Avançado: colar um Item ID</summary>
+          <div class="campo" style="margin-top:8px"><label for="t-item">Item ID</label><input id="t-item" name="item_id" value="${esc(b.item_id)}" autocomplete="off" spellcheck="false"></div>
+        </details>
         <label class="mini" style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="remover" value="1"> Desconectar esta conta (para de sincronizar)</label>
-        <div class="grade-2"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn primario">Salvar</button></div>
+        <div class="grade-2"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn">Salvar</button></div>
       </form>`);
+    let reconectar = false;
+    document.getElementById('reconectar')?.addEventListener('click', () => { reconectar = true; });
+    const v = await resposta;
+
+    if (reconectar) {
+      const item = await abrirPluggy(null);
+      if (!item) return;
+      await q(db.from('banco_conexoes').update({ item_id: item.id, apelido: b.apelido || item.apelido, ultimo_erro: null }).eq('id', b.id));
+      aviso('Conta reconectada. Sincronizando…');
+      await sincronizar(null);
+      return recarregar();
+    }
     if (!v) return;
     if (v.remover) {
       await q(db.from('banco_conexoes').delete().eq('id', b.id));
       aviso('Conta desconectada. Os lançamentos já importados foram mantidos.');
       return recarregar();
     }
-    const novoItem = v.item_id.trim();
+    const novoItem = (v.item_id || b.item_id).trim();
     const mudou = novoItem !== b.item_id;
-    // Ao trocar o Item ID, recomeça de onde parou (os repetidos são descartados na sincronização)
     await q(db.from('banco_conexoes').update({ item_id: novoItem, apelido: v.apelido?.trim() || null, ultimo_erro: null }).eq('id', b.id));
     if (mudou) { aviso('Conta trocada. Sincronizando…'); await sincronizar(null); }
     recarregar();
@@ -327,5 +330,40 @@ function ligarBanco(tela, bancos) {
   if (bancos.length && velha && !autoFeito) {
     autoFeito = true;
     sincronizar(null);
+  }
+}
+
+// Abre a janela da Pluggy (Pluggy Connect) dentro da Arca e devolve o item conectado
+function carregarPluggy() {
+  // Carregado só quando for conectar (não pesa na abertura do app)
+  return import('pluggy-connect-sdk').then((m) => m.default || m.PluggyConnect);
+}
+
+async function abrirPluggy(botao) {
+  const texto = botao?.textContent;
+  if (botao) { botao.disabled = true; botao.textContent = 'Abrindo…'; }
+  try {
+    const token = await tokenAtual();
+    const r = await fetch('/api/banco-token', { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: '{}' });
+    const res = await r.json().catch(() => ({}));
+    if (!r.ok || !res.token) throw new Error(res.erro || 'Não consegui iniciar a conexão com a Pluggy');
+    const PluggyConnect = await carregarPluggy();
+    return await new Promise((ok) => {
+      let feito = false;
+      const pc = new PluggyConnect({
+        connectToken: res.token,
+        includeSandbox: false,
+        ...(res.conectores?.length ? { connectorIds: res.conectores } : {}),
+        onSuccess: (data) => { feito = true; ok({ id: data.item.id, apelido: data.item.connector?.name || null }); },
+        onError: (err) => { aviso(err?.message || 'A Pluggy não conseguiu conectar'); },
+        onClose: () => { if (!feito) ok(null); }
+      });
+      pc.init();
+    });
+  } catch (e) {
+    aviso(e.message);
+    return null;
+  } finally {
+    if (botao) { botao.disabled = false; botao.textContent = texto; }
   }
 }

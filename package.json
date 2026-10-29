@@ -12,7 +12,8 @@
   "license": "ISC",
   "dependencies": {
     "@neondatabase/neon-js": "^0.9.0-beta",
-    "jose": "^6.2.13"
+    "jose": "^6.2.13",
+    "pluggy-connect-sdk": "^2.14.2"
   },
   "devDependencies": {
     "vite": "^8.3.5",
