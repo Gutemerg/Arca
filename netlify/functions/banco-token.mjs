@@ -6,7 +6,7 @@ const env = new Proxy({}, { get: (_, k) => Netlify.env.get(String(k)) });
 export default async (req) => {
   if (req.method !== 'POST') return Response.json({ erro: 'Use POST' }, { status: 405 });
   const corpo = await req.json().catch(() => ({}));
-  const { status, body } = await tokenConexao({ authorization: req.headers.get('authorization'), env, itemId: corpo.itemId });
+  const { status, body } = await tokenConexao({ authorization: req.headers.get('authorization'), env, itemId: corpo.itemId, origem: new URL(req.url).origin });
   return Response.json(body, { status });
 };
 
