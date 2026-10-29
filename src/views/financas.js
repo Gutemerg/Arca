@@ -10,7 +10,7 @@ export default async function financas(tela) {
     q(db.from('assinaturas').select('id,nome,valor,ciclo,ultimo_uso').eq('ativa', true).order('valor', { ascending: false })),
     q(db.from('caixinhas').select('id,nome,meta,saldo').order('criado_em')),
     q(db.from('categorias').select('nome,tipo').order('nome')),
-    q(db.from('banco_conexoes').select('id,item_id,apelido,ultima_sync,ultimo_erro').order('criado_em'))
+    q(db.from('banco_conexoes').select('id,item_id,apelido,ultima_sync,ultimo_erro,saldo,saldo_em,ultimo_resumo').order('criado_em'))
   ]);
 
   const entrou = soma(lancs.filter((l) => l.tipo === 'entrada'));
@@ -241,12 +241,16 @@ function cartaoBanco(bancos) {
   return `
     <section class="card lista" aria-labelledby="h-banco">
       <div class="cabeca" style="margin:10px 0 4px"><h2 id="h-banco" style="font-size:15px">Conta bancária</h2><button type="button" class="btn pequeno suave" id="sync-banco">Sincronizar</button></div>
-      ${bancos.map((b) => `
+      ${bancos.map((b) => {
+        const st = b.ultimo_resumo?.item?.status;
+        const coletando = st && st !== 'UPDATED' && !b.ultimo_erro;
+        return `
         <div class="linha">
           <span class="col"><span class="t">${esc(b.apelido || 'Conta corrente')}</span>
-          <span class="mini ${b.ultimo_erro ? 'atencao' : ''}">${b.ultimo_erro ? 'erro: ' + esc(b.ultimo_erro) : 'atualizada ' + quandoSync(b.ultima_sync)}</span></span>
-          <button type="button" class="btn pequeno" data-banco="${b.id}">Trocar</button>
-        </div>`).join('')}
+          <span class="mini ${b.ultimo_erro || coletando ? 'atencao' : ''}">${b.ultimo_erro ? 'erro: ' + esc(b.ultimo_erro) : coletando ? 'o banco ainda está sendo lido pela Pluggy' : 'atualizada ' + quandoSync(b.ultima_sync)}</span></span>
+          <span style="display:flex;align-items:center;gap:10px">${b.saldo != null ? `<span class="v" title="Saldo no banco">${reais(b.saldo)}</span>` : ''}<button type="button" class="btn pequeno" data-banco="${b.id}">Trocar</button></span>
+        </div>`;
+      }).join('')}
       <div class="linha" style="min-height:44px"><button type="button" class="btn pequeno" id="conectar-banco">+ Outra conta</button></div>
     </section>`;
 }
@@ -258,8 +262,9 @@ async function sincronizar(botao) {
     const r = await fetch('/api/banco-sync', { method: 'POST', headers: { authorization: `Bearer ${token}` } });
     const res = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(res.erro || (res.erros || []).join(' ') || 'Não consegui sincronizar');
-    if (botao || res.novos) aviso(res.novos ? `${res.novos} lançamento(s) novo(s) do banco` : 'Tudo em dia com o banco');
-    if (res.novos) recarregar();
+    if (res.avisos?.length) aviso(res.avisos[0]);
+    else if (botao || res.novos) aviso(res.novos ? `${res.novos} lançamento(s) novo(s) do banco` : res.lidos ? 'Tudo em dia com o banco' : 'O banco não enviou movimentações neste período');
+    recarregar();
   } catch (e) {
     if (botao) aviso(e.message);
   } finally {
