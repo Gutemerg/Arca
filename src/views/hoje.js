@@ -1,5 +1,5 @@
 import { db, q } from '../db.js';
-import { esc, reais, reaisCurto, hojeISO, inicioMesISO, quando, dataLonga, saudacao, aviso, folha } from '../util.js';
+import { contaNoResultado, esc, reais, reaisCurto, hojeISO, inicioMesISO, quando, dataLonga, saudacao, aviso, folha } from '../util.js';
 
 export default async function hoje(tela, { sessao }) {
   const hj = hojeISO();
@@ -9,7 +9,7 @@ export default async function hoje(tela, { sessao }) {
     q(db.from('contas_pagar').select('id,nome,valor,vencimento,sala').is('pago_em', null).lte('vencimento', em5).order('vencimento')),
     q(db.from('documentos').select('id,nome,validade').not('validade', 'is', null).lte('validade', em30).order('validade')),
     q(db.from('consultas').select('id,titulo,tipo,data_hora,status,local').in('status', ['pendente', 'agendada']).order('data_hora', { nullsFirst: true })),
-    q(db.from('lancamentos').select('tipo,valor').gte('data', inicioMesISO())),
+    q(db.from('lancamentos').select('tipo,valor,categorias(nome)').gte('data', inicioMesISO())),
     q(db.from('tarefas').select('id,titulo,sala,data,hora,concluida_em').or(`data.is.null,data.lte.${hj}`).order('hora', { nullsFirst: false }).order('criado_em').limit(30)),
     q(db.from('habitos').select('id,nome,horario').eq('ativo', true).order('horario', { nullsFirst: false }).order('ordem').order('criado_em')),
     q(db.from('habito_registros').select('habito_id').eq('data', hj)),
@@ -24,8 +24,9 @@ export default async function hoje(tela, { sessao }) {
     ...consultas.filter((c) => c.status === 'pendente').map((c) => ({ titulo: `${c.titulo} ainda sem data`, detalhe: 'Saúde', nivel: 'info', link: '#/salas' }))
   ];
 
-  const entrou = lancs.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + Number(l.valor), 0);
-  const saiu = lancs.filter((l) => l.tipo === 'saida').reduce((s, l) => s + Number(l.valor), 0);
+  const doResultado = lancs.filter(contaNoResultado);
+  const entrou = doResultado.filter((l) => l.tipo === 'entrada').reduce((s, l) => s + Number(l.valor), 0);
+  const saiu = doResultado.filter((l) => l.tipo === 'saida').reduce((s, l) => s + Number(l.valor), 0);
   const usado = entrou > 0 ? Math.min(100, Math.round((saiu / entrou) * 100)) : 0;
 
   const pendentes = tarefas.filter((t) => !t.concluida_em || t.concluida_em.slice(0, 10) === hj);

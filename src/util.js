@@ -62,3 +62,7 @@ export function folha(html) {
 }
 
 export const CORES = ['#4FD1A5', '#5B9CF5', '#B18CF0', '#F2B544', '#FF8A7A', '#7CD3E8', '#E58BD0', '#8A919C'];
+
+// Movimentações que só mudam o dinheiro de lugar: aparecem na lista, mas não contam como ganho nem gasto
+export const CATEGORIAS_NEUTRAS = ['investimentos', 'entre minhas contas'];
+export const contaNoResultado = (l) => !CATEGORIAS_NEUTRAS.includes((l.categorias?.nome || '').toLowerCase());
