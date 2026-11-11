@@ -110,8 +110,12 @@ export default async function hoje(tela, { sessao }) {
     const h = habitos.find((x) => x.id === b.dataset.editarHabito);
     const v = await folha(formRotina('Editar item da rotina', h, true));
     if (!v) return;
-    if (v.remover) await q(db.from('habitos').update({ ativo: false }).eq('id', h.id));
-    else await q(db.from('habitos').update({ nome: v.nome, horario: v.horario || null }).eq('id', h.id));
+    try {
+      if (v.remover) await q(db.from('habitos').update({ ativo: false }).eq('id', h.id));
+      else await q(db.from('habitos').update({ nome: v.nome, horario: v.horario || null }).eq('id', h.id));
+    } catch (e) {
+      return aviso('Não consegui salvar: ' + e.message);
+    }
     window.dispatchEvent(new HashChangeEvent('hashchange'));
   }));
 
@@ -134,7 +138,11 @@ export default async function hoje(tela, { sessao }) {
   tela.querySelector('#novo-habito').addEventListener('click', async () => {
     const v = await folha(formRotina('Novo item da rotina'));
     if (!v) return;
-    await q(db.from('habitos').insert({ nome: v.nome, horario: v.horario || null }));
+    try {
+      await q(db.from('habitos').insert({ nome: v.nome, horario: v.horario || null }));
+    } catch (e) {
+      return aviso('Não consegui salvar: ' + e.message);
+    }
     window.dispatchEvent(new HashChangeEvent('hashchange'));
   });
 }
