@@ -49,3 +49,11 @@ A Arca puxa a conta corrente pelo **Meu Pluggy** (gratuito para as suas própria
 A função `/api/banco-sync` lê só contas correntes, ignora lançamentos pendentes, nunca duplica
 (`externo_id`) e grava com o JWT do usuário, respeitando o RLS. O app sincroniza sozinho ao abrir
 Finanças (no máximo a cada 12 h) e pelo botão **Sincronizar**.
+
+## Hospedagem (Cloudflare Pages)
+
+- Build: `npm run build`, saída `dist`. Funções em `functions/api/*` (captura, banco-sync, banco-token),
+  com a lógica compartilhada em `lib/`. As pastas `netlify/` e `api/` (Vercel) ficam só como alternativa.
+- Variáveis: `VITE_NEON_AUTH_URL`, `VITE_NEON_DATA_API_URL`, `NEON_AUTH_JWKS_URL`, `PLUGGY_CLIENT_ID`,
+  `PLUGGY_CLIENT_SECRET` (secreta) e, se usar a captura por IA, `ANTHROPIC_API_KEY` (secreta).
+- O domínio do Pages precisa estar na lista de domínios confiáveis do Neon Auth.
