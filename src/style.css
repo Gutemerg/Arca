@@ -207,3 +207,11 @@ h2 { margin: 0; font-size: 17px; font-weight: 800; }
 .carregando { color: var(--suave); font-size: 14px; padding: 40px 0; text-align: center; }
 .card-alerta { display: flex; gap: 12px; align-items: center; background: var(--alerta-fundo); border-color: var(--alerta-borda); }
 .card-alerta .mini { color: var(--alerta-texto); }
+.linha-rotina { display: flex; align-items: center; gap: 4px; }
+.linha-rotina .item-check { flex: 1; min-width: 0; }
+.linha-rotina:first-of-type .item-check, .linha-rotina .item-check { border-top: 0; }
+.linha-rotina { border-top: 1px solid var(--borda); }
+.hora-rotina { flex: none; width: 46px; font-size: 14px; font-weight: 800; color: var(--verde); font-variant-numeric: tabular-nums; }
+.item-check[aria-pressed="true"] .hora-rotina { color: var(--suave); }
+.btn-editar { flex: none; width: 44px; height: 44px; border: 0; background: none; color: var(--suave); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 12px; }
+.btn-editar svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
