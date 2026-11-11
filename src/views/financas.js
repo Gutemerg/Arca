@@ -36,8 +36,12 @@ export default async function financas(tela) {
     <header class="cabeca" style="align-items:center"><h1>Finanças</h1><button type="button" class="btn pequeno suave" id="novo-lanc">+ Lançamento</button></header>
 
     <section class="card" aria-label="Resumo do mês" style="display:flex;flex-direction:column;gap:12px">
+      ${bancos.some((b) => b.saldo != null) ? `
+      <span class="mini" style="font-weight:700">Saldo na conta corrente</span>
+      <span style="font-size:34px;font-weight:800;letter-spacing:-0.03em">${reais(bancos.reduce((t, b) => t + Number(b.saldo || 0), 0))}</span>
+      <span class="mini">Resultado de ${esc(mes)}: ${reais(entrou - saiu)}</span>` : `
       <span class="mini" style="font-weight:700">Livre em ${esc(mes)}</span>
-      <span style="font-size:34px;font-weight:800;letter-spacing:-0.03em">${reais(entrou - saiu)}</span>
+      <span style="font-size:34px;font-weight:800;letter-spacing:-0.03em">${reais(entrou - saiu)}</span>`}
       <div class="grade-2" style="gap:10px">
         <div style="background:var(--card-2);border-radius:12px;padding:10px 12px"><span class="mini" style="display:block;font-weight:700">Entrou</span><span class="ok" style="font-size:16px;font-weight:800">${reaisCurto(entrou)}</span></div>
         <div style="background:var(--card-2);border-radius:12px;padding:10px 12px"><span class="mini" style="display:block;font-weight:700">Saiu</span><span style="font-size:16px;font-weight:800">${reaisCurto(saiu)}</span></div>
