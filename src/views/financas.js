@@ -1,5 +1,5 @@
 import { db, q, tokenAtual } from '../db.js';
-import { contaNoResultado, esc, reais, reaisCurto, hojeISO, inicioMesISO, quando, dataCurta, aviso, folha, CORES } from '../util.js';
+import { esc, reais, reaisCurto, hojeISO, inicioMesISO, quando, dataCurta, aviso, folha, CORES } from '../util.js';
 
 const recarregar = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
 
@@ -13,13 +13,12 @@ export default async function financas(tela) {
     q(db.from('banco_conexoes').select('id,item_id,apelido,ultima_sync,ultimo_erro,saldo,saldo_em,ultimo_resumo').order('criado_em'))
   ]);
 
-  const doResultado = lancs.filter(contaNoResultado);
-  const entrou = soma(doResultado.filter((l) => l.tipo === 'entrada'));
-  const saiu = soma(doResultado.filter((l) => l.tipo === 'saida'));
+  const entrou = soma(lancs.filter((l) => l.tipo === 'entrada'));
+  const saiu = soma(lancs.filter((l) => l.tipo === 'saida'));
 
   // Agrupa gastos por categoria para a pizza
   const porCat = {};
-  doResultado.filter((l) => l.tipo === 'saida').forEach((l) => {
+  lancs.filter((l) => l.tipo === 'saida').forEach((l) => {
     const c = l.categorias?.nome || 'Outros';
     porCat[c] = (porCat[c] || 0) + Number(l.valor);
   });
