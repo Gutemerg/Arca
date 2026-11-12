@@ -14,7 +14,7 @@ export default async function hoje(tela, { sessao }) {
     q(db.from('habitos').select('id,nome,horario').eq('ativo', true).order('horario', { nullsFirst: false }).order('ordem').order('criado_em')),
     q(db.from('habito_registros').select('habito_id').eq('data', hj)),
     q(db.from('alertas').select('id,titulo,detalhe,sala,nivel,link').is('lido_em', null).order('criado_em', { ascending: false }).limit(5)),
-    q(db.from('banco_conexoes').select('saldo,saldo_em')).catch(() => [])
+    q(db.from('banco_conexoes').select('saldo,saldo_em,saldo_investimentos')).catch(() => [])
   ]);
 
   // ---- Alertas: o que a Arca avisa ----
@@ -32,6 +32,8 @@ export default async function hoje(tela, { sessao }) {
   const saldoConta = comSaldo.reduce((t, b) => t + Number(b.saldo), 0);
   const ultimoSaldo = comSaldo.map((b) => b.saldo_em).filter(Boolean).sort().pop();
   const saldoEm = ultimoSaldo ? new Date(ultimoSaldo).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) : '';
+  const temInvest = (bancos || []).some((b) => b.saldo_investimentos != null);
+  const saldoInvest = (bancos || []).reduce((t, b) => t + Number(b.saldo_investimentos || 0), 0);
   const usado = entrou > 0 ? Math.min(100, Math.round((saiu / entrou) * 100)) : 0;
 
   const pendentes = tarefas.filter((t) => !t.concluida_em || t.concluida_em.slice(0, 10) === hj);
@@ -61,9 +63,11 @@ export default async function hoje(tela, { sessao }) {
 
     <a href="#/financas" class="grade-2" style="text-decoration:none;color:inherit">
       ${comSaldo.length
-        ? `<a class="kpi" href="#/financas" style="text-decoration:none;color:inherit"><span class="mini" style="font-weight:600">Saldo na conta</span><span class="n">${reais(saldoConta)}</span><span class="mini">conta corrente${saldoEm ? ' · ' + esc(saldoEm) : ''}</span></a>`
+        ? `<span class="kpi"><span class="mini" style="font-weight:600">Saldo na conta</span><span class="n">${reais(saldoConta)}</span><span class="mini">conta corrente${saldoEm ? ' · ' + esc(saldoEm) : ''}</span></span>`
         : `<span class="kpi"><span class="mini" style="font-weight:600">Livre no mês</span><span class="n">${reaisCurto(entrou - saiu)}</span><span class="mini">${lancs.length ? lancs.length + ' lançamentos' : 'nenhum lançamento ainda'}</span></span>`}
-      <span class="kpi"><span class="mini" style="font-weight:600">Orçamento usado</span><span class="n">${entrou ? usado + '%' : '—'}</span><span class="barra"><span style="width:${usado}%"></span></span></span>
+${temInvest
+        ? `<span class="kpi"><span class="mini" style="font-weight:600">Investimentos</span><span class="n">${reais(saldoInvest)}</span><span class="mini">conta separada</span></span>`
+        : `      <span class="kpi"><span class="mini" style="font-weight:600">Orçamento usado</span><span class="n">${entrou ? usado + '%' : '—'}</span><span class="barra"><span style="width:${usado}%"></span></span></span>`}
     </a>
 
     ${agendaHoje.length ? `

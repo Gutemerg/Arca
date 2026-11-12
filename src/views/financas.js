@@ -10,9 +10,18 @@ export default async function financas(tela) {
     q(db.from('assinaturas').select('id,nome,valor,ciclo,ultimo_uso').eq('ativa', true).order('valor', { ascending: false })),
     q(db.from('caixinhas').select('id,nome,meta,saldo').order('criado_em')),
     q(db.from('categorias').select('nome,tipo').order('nome')),
-    q(db.from('banco_conexoes').select('id,item_id,apelido,ultima_sync,ultimo_erro,saldo,saldo_em,ultimo_resumo').order('criado_em'))
+    q(db.from('banco_conexoes').select('id,item_id,apelido,ultima_sync,ultimo_erro,saldo,saldo_em,ultimo_resumo,saldo_investimentos,investimentos').order('criado_em'))
   ]);
 
+  // Duas contas separadas: corrente (todos os lançamentos do banco) e investimentos (saldo próprio)
+  const temSaldo = bancos.some((b) => b.saldo != null);
+  const saldoCorrente = bancos.reduce((t, b) => t + Number(b.saldo || 0), 0);
+  const temInvest = bancos.some((b) => b.saldo_investimentos != null);
+  const saldoInvest = bancos.reduce((t, b) => t + Number(b.saldo_investimentos || 0), 0);
+  const listaInvest = bancos.flatMap((b) => b.investimentos || []).sort((a, b) => b.saldo - a.saldo);
+  const deInvest = lancs.filter((l) => (l.categorias?.nome || '').toLowerCase() === 'investimentos');
+  const aplicado = soma(deInvest.filter((l) => l.tipo === 'saida'));
+  const resgatado = soma(deInvest.filter((l) => l.tipo === 'entrada'));
   const entrou = soma(lancs.filter((l) => l.tipo === 'entrada'));
   const saiu = soma(lancs.filter((l) => l.tipo === 'saida'));
 
@@ -35,18 +44,29 @@ export default async function financas(tela) {
   tela.innerHTML = `
     <header class="cabeca" style="align-items:center"><h1>Finanças</h1><button type="button" class="btn pequeno suave" id="novo-lanc">+ Lançamento</button></header>
 
-    <section class="card" aria-label="Resumo do mês" style="display:flex;flex-direction:column;gap:12px">
-      ${bancos.some((b) => b.saldo != null) ? `
-      <span class="mini" style="font-weight:700">Saldo na conta corrente</span>
-      <span style="font-size:34px;font-weight:800;letter-spacing:-0.03em">${reais(bancos.reduce((t, b) => t + Number(b.saldo || 0), 0))}</span>
-      <span class="mini">Resultado de ${esc(mes)}: ${reais(entrou - saiu)}</span>` : `
+    <section class="card" aria-label="Conta corrente" style="display:flex;flex-direction:column;gap:12px">
+      ${temSaldo ? `
+      <span class="mini" style="font-weight:700">Conta corrente · saldo</span>
+      <span style="font-size:34px;font-weight:800;letter-spacing:-0.03em">${reais(saldoCorrente)}</span>` : `
       <span class="mini" style="font-weight:700">Livre em ${esc(mes)}</span>
       <span style="font-size:34px;font-weight:800;letter-spacing:-0.03em">${reais(entrou - saiu)}</span>`}
       <div class="grade-2" style="gap:10px">
-        <div style="background:var(--card-2);border-radius:12px;padding:10px 12px"><span class="mini" style="display:block;font-weight:700">Entrou</span><span class="ok" style="font-size:16px;font-weight:800">${reaisCurto(entrou)}</span></div>
-        <div style="background:var(--card-2);border-radius:12px;padding:10px 12px"><span class="mini" style="display:block;font-weight:700">Saiu</span><span style="font-size:16px;font-weight:800">${reaisCurto(saiu)}</span></div>
+        <div style="background:var(--card-2);border-radius:12px;padding:10px 12px"><span class="mini" style="display:block;font-weight:700">Entrou em ${esc(mes)}</span><span class="ok" style="font-size:16px;font-weight:800">${reaisCurto(entrou)}</span></div>
+        <div style="background:var(--card-2);border-radius:12px;padding:10px 12px"><span class="mini" style="display:block;font-weight:700">Saiu em ${esc(mes)}</span><span style="font-size:16px;font-weight:800">${reaisCurto(saiu)}</span></div>
       </div>
+      <span class="mini">Aplicar em investimento conta como saída da conta corrente; resgatar conta como entrada.</span>
     </section>
+
+    ${temInvest ? `
+    <section class="card" aria-label="Investimentos" style="display:flex;flex-direction:column;gap:12px">
+      <span class="mini" style="font-weight:700">Investimentos · saldo</span>
+      <span style="font-size:28px;font-weight:800;letter-spacing:-0.03em">${reais(saldoInvest)}</span>
+      <div class="grade-2" style="gap:10px">
+        <div style="background:var(--card-2);border-radius:12px;padding:10px 12px"><span class="mini" style="display:block;font-weight:700">Aplicado em ${esc(mes)}</span><span style="font-size:16px;font-weight:800">${reaisCurto(aplicado)}</span></div>
+        <div style="background:var(--card-2);border-radius:12px;padding:10px 12px"><span class="mini" style="display:block;font-weight:700">Resgatado em ${esc(mes)}</span><span style="font-size:16px;font-weight:800">${reaisCurto(resgatado)}</span></div>
+      </div>
+      ${listaInvest.length ? `<div>${listaInvest.map((i) => `<div class="linha" style="min-height:40px"><span class="t" style="font-size:13px">${esc(i.nome || i.tipo || 'Investimento')}</span><span class="v" style="font-size:13px">${reais(i.saldo)}</span></div>`).join('')}</div>` : ''}
+    </section>` : ''}
 
     ${cartaoBanco(bancos)}
 
