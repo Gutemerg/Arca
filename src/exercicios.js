@@ -51,8 +51,11 @@ export const TIPOS = {
   outro: 'Outro'
 };
 
-export const DIAS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+// Índice = Date.getDay() (0 = domingo). A tela mostra de segunda a domingo.
+export const DIAS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+export const ORDEM_SEMANA = [1, 2, 3, 4, 5, 6, 0];
 export const DIAS_LONGOS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+export const DIAS_TITULO = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
 // Força estimada (1RM, fórmula de Epley)
 export const umRM = (carga, reps) => (carga && reps ? Number(carga) * (1 + Number(reps) / 30) : 0);

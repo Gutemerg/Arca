@@ -16,12 +16,28 @@ const rotas = { hoje, capturar, salas, financas, documentos, treino };
 const tela = document.getElementById('tela');
 const nav = document.getElementById('nav');
 
+let primeiraVez = true;
+
+// Se o app foi fechado no meio de um treino, abre direto nele
+function retomarTreino() {
+  if (!primeiraVez) return;
+  primeiraVez = false;
+  const atual = location.hash.replace(/^#\/?/, '');
+  if (atual && !atual.startsWith('hoje')) return;
+  try {
+    const at = JSON.parse(localStorage.getItem('arca-treino-ativo'));
+    if (at?.id && Date.now() - at.inicio < 6 * 3600000) history.replaceState(null, '', `#/treino?treinar=${at.id}`);
+  } catch {}
+}
+
 async function render() {
+  retomarTreino();
   const [nome, query = ''] = location.hash.replace(/^#\/?/, '').split('?');
   const sessao = await sessaoAtual().catch(() => null);
 
   if (!sessao) {
     nav.hidden = true;
+    primeiraVez = false;
     return login(tela);
   }
 
@@ -54,6 +70,8 @@ async function render() {
   if (!rotas[nome]) history.replaceState(null, '', '#/hoje');
 
   nav.hidden = false;
+  // Durante o treino a barra de navegação some, para sobrar espaço para séries e descanso
+  document.body.classList.toggle('modo-treino', rota === 'treino' && new URLSearchParams(query).has('treinar'));
   nav.querySelectorAll('a').forEach((a) => {
     if (a.dataset.rota === rota) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
