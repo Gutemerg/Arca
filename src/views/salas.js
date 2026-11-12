@@ -1,5 +1,7 @@
 import { esc } from '../util.js';
 import { TEMAS, temaAtual, aplicarTema } from '../tema.js';
+import { aviso } from '../util.js';
+import { estadoNotificacoes, ativarNotificacoes, desativarNotificacoes, notificacaoTeste } from '../notificacoes.js';
 
 const ICONES = {
   financas: '<path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1z"/><path d="M4 7l11-3v3M16 13h1"/>',
@@ -38,12 +40,39 @@ export default function salas(tela) {
         </a>`).join('')}
     </div>
     <p class="mini" style="line-height:1.5;margin:0">As salas marcadas como “tela em breve” já guardam dados pela captura. A tela de cada uma chega nas próximas etapas.</p>
+    <section class="card" style="display:flex;flex-direction:column;gap:10px">
+      <h2>Avisos no celular e no relógio</h2>
+      <p class="mini" style="margin:0;line-height:1.5">Rotina e tarefas no horário, consultas 1 hora antes, contas e documentos às 8h. O relógio recebe pelo app Huawei Saúde.</p>
+      <p class="mini" id="notif-estado" style="margin:0;font-weight:700">Verificando…</p>
+      <div class="grade-2"><button type="button" class="btn primario" id="notif-ativar">Ativar avisos</button><button type="button" class="btn" id="notif-teste">Enviar teste</button></div>
+    </section>
     <section class="card">
       <h2>Aparência</h2>
       <div class="chips" role="group" aria-label="Tema" style="margin-top:12px">
         ${TEMAS.map((t) => `<button type="button" class="chip" data-tema="${t.id}" aria-pressed="${t.id === temaAtual()}">${t.nome}</button>`).join('')}
       </div>
     </section>`;
+
+  const estadoEl = tela.querySelector('#notif-estado');
+  const ativarBtn = tela.querySelector('#notif-ativar');
+  const TEXTOS = { ativa: 'Ativos neste celular.', desligada: 'Desligados neste celular.', bloqueada: 'Bloqueados: libere as notificações da Arca nas configurações do celular.', indisponivel: 'Este navegador não aceita avisos. Instale a Arca na tela inicial.' };
+  const atualizar = async () => {
+    const st = await estadoNotificacoes().catch(() => 'indisponivel');
+    estadoEl.textContent = TEXTOS[st];
+    ativarBtn.textContent = st === 'ativa' ? 'Desativar' : 'Ativar avisos';
+    ativarBtn.dataset.estado = st;
+  };
+  atualizar();
+  ativarBtn.addEventListener('click', async () => {
+    ativarBtn.disabled = true;
+    try {
+      if (ativarBtn.dataset.estado === 'ativa') { await desativarNotificacoes(); aviso('Avisos desligados neste celular'); }
+      else { await ativarNotificacoes(); aviso('Avisos ativados'); }
+    } catch (e) { aviso(e.message); }
+    ativarBtn.disabled = false;
+    atualizar();
+  });
+  tela.querySelector('#notif-teste').addEventListener('click', () => notificacaoTeste().catch((e) => aviso(e.message)));
 
   tela.querySelectorAll('[data-tema]').forEach((botao) => {
     botao.addEventListener('click', () => {
