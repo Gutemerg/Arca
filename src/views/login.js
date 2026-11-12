@@ -20,10 +20,21 @@ export default function login(tela) {
       </form>
     </section>`;
 
+  // Volta do Google com erro (ex.: conta não vinculada, domínio não autorizado)
+  const params = new URLSearchParams(location.search);
+  if (params.get('login') === 'erro' || params.get('error')) {
+    const motivo = params.get('error') || '';
+    aviso(motivo === 'account_not_linked'
+      ? 'Este Google ainda não está vinculado à sua conta. Entre com e-mail e senha.'
+      : 'Não deu para entrar com Google' + (motivo ? ` (${motivo})` : ''));
+    history.replaceState(null, '', location.pathname + location.hash);
+  }
+
   tela.querySelector('#google').addEventListener('click', async () => {
     const { error } = await db.auth.signIn.social({
       provider: 'google',
-      callbackURL: location.origin + '/#/hoje'
+      callbackURL: location.origin + '/#/hoje',
+      errorCallbackURL: location.origin + '/?login=erro'
     });
     if (error) aviso(error.message || 'Não deu para entrar com Google');
   });
