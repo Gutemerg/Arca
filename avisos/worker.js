@@ -5,6 +5,8 @@
 // Segredos (variáveis do Worker): DATABASE_URL (usuário arca_avisos, só executa as funções de aviso),
 // VAPID_PRIVATE_JWK, VAPID_PUBLIC_KEY. Valor público: VAPID_SUBJECT.
 
+const ORIGENS = ['https://arca-junior.pages.dev'];
+
 const NEON_SQL = (url) => `https://${new URL(url).hostname}/sql`;
 
 async function sql(env, query, params = []) {
@@ -65,7 +67,7 @@ async function encrypt(sub, texto) {
 }
 
 async function enviar(aviso, env) {
-  const corpo = await encrypt(aviso, JSON.stringify({ titulo: aviso.titulo, detalhe: aviso.detalhe, link: aviso.link, tipo: aviso.tipo, id: aviso.item_id, tentativa: aviso.tentativa }));
+  const corpo = await encrypt(aviso, JSON.stringify({ titulo: aviso.titulo, detalhe: aviso.detalhe, link: aviso.link, tipo: aviso.tipo, id: aviso.item_id, tentativa: aviso.tentativa, dia: aviso.dia, token: aviso.token }));
   const r = await fetch(aviso.endpoint, {
     method: 'POST',
     headers: {
@@ -104,8 +106,29 @@ export default {
   async scheduled(_evento, env, ctx) {
     ctx.waitUntil(rodar(env));
   },
-  // Só para checar se está vivo; não dispara nada
-  async fetch() {
-    return new Response('Arca avisos: ok');
+  // POST /responder: botões "Fazendo" e "Concluí" da notificação (celular ou relógio).
+  // O banco confere o código assinado do aviso antes de marcar qualquer coisa.
+  async fetch(req, env) {
+    const cors = {
+      'Access-Control-Allow-Origin': ORIGENS.includes(req.headers.get('Origin')) ? req.headers.get('Origin') : ORIGENS[0],
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'content-type',
+      Vary: 'Origin'
+    };
+    const url = new URL(req.url);
+    if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+    if (req.method === 'POST' && url.pathname === '/responder') {
+      try {
+        const b = await req.json();
+        if (!['feito', 'executando'].includes(b.acao) || !/^[0-9a-f]{64}$/.test(b.token || '') || !/^\d{4}-\d{2}-\d{2}$/.test(b.dia || '')) {
+          return Response.json({ erro: 'pedido inválido' }, { status: 400, headers: cors });
+        }
+        const [r] = await sql(env, 'select public.aviso_responder($1, $2, $3::date, $4, $5) as nome', [b.tipo, String(b.id), b.dia, b.token, b.acao]);
+        return Response.json({ ok: true, nome: r?.nome || '' }, { headers: cors });
+      } catch (e) {
+        return Response.json({ erro: String(e.message).slice(0, 120) }, { status: 400, headers: cors });
+      }
+    }
+    return new Response('Arca avisos: ok', { headers: cors });
   }
 };

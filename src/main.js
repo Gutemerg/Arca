@@ -89,4 +89,10 @@ async function render() {
 }
 
 window.addEventListener('hashchange', render);
+// Respondeu a um aviso pela notificação (celular/relógio): atualiza a tela Hoje se estiver aberta
+navigator.serviceWorker?.addEventListener('message', (e) => {
+  if (e.data?.tipo !== 'arca-atualizar') return;
+  const atual = location.hash.replace(/^#\/?/, '');
+  if (!atual || atual.startsWith('hoje')) render();
+});
 render();
