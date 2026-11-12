@@ -4,14 +4,31 @@ import { esc, reais, reaisCurto, hojeISO, inicioMesISO, quando, dataCurta, aviso
 const recarregar = () => window.dispatchEvent(new HashChangeEvent('hashchange'));
 
 export default async function financas(tela) {
-  const [lancs, contas, assin, caixas, cats, bancos] = await Promise.all([
+  const [lancs, todasContas, assin, caixas, cats, bancos, recentes] = await Promise.all([
     q(db.from('lancamentos').select('id,tipo,valor,descricao,data,origem,conta,categorias(nome)').gte('data', inicioMesISO()).order('data', { ascending: false }).order('criado_em', { ascending: false })),
-    q(db.from('contas_pagar').select('id,nome,valor,vencimento,recorrencia,debito_automatico').is('pago_em', null).order('vencimento').limit(8)),
+    q(db.from('contas_pagar').select('id,nome,valor,vencimento,recorrencia,debito_automatico,pago_em,lancamento_id,padrao').order('vencimento')),
     q(db.from('assinaturas').select('id,nome,valor,ciclo,ultimo_uso').eq('ativa', true).order('valor', { ascending: false })),
     q(db.from('caixinhas').select('id,nome,meta,saldo').order('criado_em')),
     q(db.from('categorias').select('nome,tipo').order('nome')),
-    q(db.from('banco_conexoes').select('id,item_id,apelido,ultima_sync,ultimo_erro,saldo,saldo_em,ultimo_resumo,saldo_investimentos,investimentos').order('criado_em'))
+    q(db.from('banco_conexoes').select('id,item_id,apelido,ultima_sync,ultimo_erro,saldo,saldo_em,ultimo_resumo,saldo_investimentos,investimentos').order('criado_em')),
+    q(db.from('lancamentos').select('id,valor,descricao,data').eq('tipo', 'saida').gte('data', hojeISO(-45)).order('data'))
   ]);
+
+  // Pagamento de conta já cadastrada (fixa): dá baixa sozinho e agenda a próxima
+  if (await darBaixaAutomatica(todasContas, recentes)) return recarregar();
+
+  const contas = todasContas.filter((c) => !c.pago_em).slice(0, 8);
+  const ligados = new Set(todasContas.map((c) => c.lancamento_id).filter(Boolean));
+  const padroes = new Set(todasContas.map((c) => c.padrao).filter(Boolean));
+  const podeFixar = (l) => l.tipo === 'saida' && !ligados.has(l.id) && !padroes.has(normalizar(l.descricao)) &&
+    !['investimentos', 'entre minhas contas'].includes((l.categorias?.nome || '').toLowerCase());
+  // Quanto as contas fixas somam por mês (uma por série)
+  const series = new Map();
+  todasContas.filter((c) => !c.pago_em && c.recorrencia !== 'unica').forEach((c) => {
+    const k = c.padrao || c.nome.toLowerCase();
+    if (!series.has(k)) series.set(k, c);
+  });
+  const totalFixas = [...series.values()].reduce((t, c) => t + Number(c.valor || 0) / (c.recorrencia === 'anual' ? 12 : 1), 0);
 
   // Duas contas separadas: corrente (todos os lançamentos do banco) e investimentos (saldo próprio)
   const temSaldo = bancos.some((b) => b.saldo != null);
@@ -84,7 +101,7 @@ export default async function financas(tela) {
     </section>
 
     <section class="card lista" aria-labelledby="h-contas">
-      <div class="cabeca" style="margin:10px 0 4px"><h2 id="h-contas" style="font-size:15px">Próximas contas</h2><button type="button" class="btn pequeno" id="nova-conta">+ Conta</button></div>
+      <div class="cabeca" style="margin:10px 0 4px"><h2 id="h-contas" style="font-size:15px">Próximas contas</h2><span style="display:flex;gap:8px;align-items:center">${totalFixas ? `<span class="mini" style="font-weight:700">fixas: ${reais(totalFixas)}/mês</span>` : ''}<button type="button" class="btn pequeno" id="nova-conta">+ Conta</button></span></div>
       ${contas.length ? contas.map((c) => {
         const n = Math.round((new Date(c.vencimento) - new Date(hojeISO())) / 86400000);
         return `
@@ -119,7 +136,7 @@ export default async function financas(tela) {
       <h2 id="h-ult">Lançamentos do mês</h2>
       ${lancs.slice(0, 15).map((l) => `
         <div class="linha"><span class="col"><span class="t">${esc(l.descricao)}</span><span class="mini">${dataCurta(l.data)} · ${esc(l.categorias?.nome || 'Sem categoria')}${l.origem === 'banco' ? ' · banco' : ''}</span></span>
-        <span style="display:flex;align-items:center;gap:6px"><span class="v ${l.tipo === 'entrada' ? 'ok' : ''}">${l.tipo === 'entrada' ? '+' : '−'} ${reais(l.valor)}</span><button type="button" class="btn-icone" style="width:36px;height:36px;border:0;background:none;color:var(--suave)" data-apagar="${l.id}" aria-label="Apagar ${esc(l.descricao)}">×</button></span></div>`).join('') || '<p class="vazio">Nenhum lançamento neste mês.</p>'}
+        <span style="display:flex;align-items:center;gap:6px"><span class="v ${l.tipo === 'entrada' ? 'ok' : ''}">${l.tipo === 'entrada' ? '+' : '−'} ${reais(l.valor)}</span>${podeFixar(l) ? `<button type="button" class="btn pequeno suave" style="min-height:32px;padding:0 10px" data-fixar="${l.id}" aria-label="Tornar ${esc(l.descricao)} uma conta fixa">↻ Fixa</button>` : ''}<button type="button" class="btn-icone" style="width:36px;height:36px;border:0;background:none;color:var(--suave)" data-apagar="${l.id}" aria-label="Apagar ${esc(l.descricao)}">×</button></span></div>`).join('') || '<p class="vazio">Nenhum lançamento neste mês.</p>'}
     </section>
     <datalist id="lista-cats">${cats.map((c) => `<option value="${esc(c.nome)}">`).join('')}</datalist>`;
 
@@ -221,6 +238,33 @@ export default async function financas(tela) {
     const v = await folha(`<h2>${esc(c.nome)}</h2><form class="form"><div class="campo"><label for="d-valor">Depositar (use − para retirar)</label><input id="d-valor" name="valor" inputmode="decimal" required></div><div class="grade-2"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn primario">Confirmar</button></div></form>`);
     if (!v) return;
     await q(db.from('caixinhas').update({ saldo: Number(c.saldo) + num(v.valor) }).eq('id', c.id));
+    recarregar();
+  }));
+
+  tela.querySelectorAll('[data-fixar]').forEach((b) => b.addEventListener('click', async () => {
+    const l = lancs.find((x) => x.id === b.dataset.fixar);
+    const dia = Number(l.data.slice(8, 10));
+    const v = await folha(`
+      <h2>Tornar conta fixa</h2>
+      <p class="mini" style="margin:0;line-height:1.5">Fica marcada como paga neste mês e a próxima já entra em Próximas contas. Quando o banco trouxer o próximo pagamento, a Arca dá baixa sozinha.</p>
+      <form class="form">
+        <div class="campo"><label for="f-nome">Nome</label><input id="f-nome" name="nome" value="${esc(nomeLimpo(l.descricao))}" required></div>
+        <div class="grade-2">
+          <div class="campo"><label for="f-valor">Valor (R$)</label><input id="f-valor" name="valor" inputmode="decimal" value="${String(l.valor).replace('.', ',')}"></div>
+          <div class="campo"><label for="f-dia">Vence todo dia</label><input id="f-dia" name="dia" type="number" min="1" max="31" value="${dia}" required></div>
+        </div>
+        <div class="campo"><label for="f-rec">Repete</label><select id="f-rec" name="recorrencia"><option value="mensal">Todo mês</option><option value="anual">Todo ano</option></select></div>
+        <div class="grade-2"><button type="button" class="btn" data-fechar>Cancelar</button><button class="btn primario">Tornar fixa</button></div>
+      </form>`);
+    if (!v) return;
+    const valor = v.valor ? num(v.valor) : Number(l.valor);
+    const padrao = normalizar(l.descricao);
+    const venceAgora = comDia(l.data, Number(v.dia));
+    try {
+      await q(db.from('contas_pagar').insert({ nome: v.nome, valor, vencimento: venceAgora, recorrencia: v.recorrencia, pago_em: l.data, lancamento_id: l.id, padrao }));
+      await q(db.from('contas_pagar').insert({ nome: v.nome, valor, vencimento: proximo(venceAgora, v.recorrencia), recorrencia: v.recorrencia, padrao }));
+      aviso(`${v.nome} agora é conta fixa`);
+    } catch (e) { return aviso('Não consegui salvar: ' + e.message); }
     recarregar();
   }));
 
@@ -390,4 +434,55 @@ async function abrirPluggy(botao) {
   } finally {
     if (botao) { botao.disabled = false; botao.textContent = texto; }
   }
+}
+
+// ============ Contas fixas a partir dos pagamentos do banco ============
+// Mesmo favorecido = mesma descrição sem números, acentos e pontuação
+export function normalizar(desc) {
+  return String(desc || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[0-9]/g, ' ').replace(/[^a-z]+/g, ' ').trim().replace(/\s+/g, ' ');
+}
+
+function nomeLimpo(desc) {
+  const s = String(desc || '')
+    .replace(/^(pix enviado|pagamento de pix qr code|pagamento de boleto|pagamento de fatura|pagamento de seguro|pagamento de imposto|pagamento de|compra d[ée]bito|d[ée]bito autom[áa]tico)\s+/i, '')
+    .replace(/^\d+\s+/, '').trim();
+  const t = s.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+  return t.length > 40 ? t.slice(0, 40).replace(/\s+\S*$/, '') : t;
+}
+
+// Data com o dia do mês trocado (respeita meses curtos)
+function comDia(iso, dia) {
+  const [a, m] = iso.split('-').map(Number);
+  const ultimo = new Date(a, m, 0).getDate();
+  return `${a}-${String(m).padStart(2, '0')}-${String(Math.min(dia, ultimo)).padStart(2, '0')}`;
+}
+
+function proximo(iso, recorrencia) {
+  const [a, m, d] = iso.split('-').map(Number);
+  const alvo = recorrencia === 'anual' ? new Date(a + 1, m - 1, 1) : new Date(a, m, 1);
+  const ultimo = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate();
+  return `${alvo.getFullYear()}-${String(alvo.getMonth() + 1).padStart(2, '0')}-${String(Math.min(d, ultimo)).padStart(2, '0')}`;
+}
+
+// Conta fixa em aberto + pagamento do mesmo favorecido perto do vencimento (±15 dias) = paga
+async function darBaixaAutomatica(contas, recentes) {
+  const ligados = new Set(contas.map((c) => c.lancamento_id).filter(Boolean));
+  let feitas = 0;
+  for (const c of contas.filter((x) => !x.pago_em && x.padrao)) {
+    const venc = new Date(c.vencimento + 'T12:00:00');
+    const l = recentes.find((r) => !ligados.has(r.id) && normalizar(r.descricao) === c.padrao &&
+      Math.abs((new Date(r.data + 'T12:00:00') - venc) / 86400000) <= 15);
+    if (!l) continue;
+    ligados.add(l.id);
+    try {
+      await q(db.from('contas_pagar').update({ pago_em: l.data, lancamento_id: l.id, valor: l.valor }).eq('id', c.id));
+      const jaTem = contas.some((x) => x.padrao === c.padrao && !x.pago_em && x.id !== c.id && x.vencimento > c.vencimento);
+      if (c.recorrencia !== 'unica' && !jaTem) {
+        await q(db.from('contas_pagar').insert({ nome: c.nome, valor: l.valor, vencimento: proximo(c.vencimento, c.recorrencia), recorrencia: c.recorrencia, debito_automatico: c.debito_automatico, padrao: c.padrao }));
+      }
+      feitas++;
+    } catch (e) { console.error('baixa automática', e); }
+  }
+  return feitas;
 }
