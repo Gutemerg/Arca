@@ -265,7 +265,7 @@ async function sincronizar(botao) {
     const token = await tokenAtual();
     const r = await fetch('/api/banco-sync', { method: 'POST', headers: { authorization: `Bearer ${token}` } });
     const res = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(res.erro || (res.erros || []).join(' ') || 'Não consegui sincronizar');
+    if (!r.ok) throw new Error(res.erro || (res.erros || []).join(' ') || `Não consegui sincronizar (erro ${r.status})`);
     if (res.avisos?.length) aviso(res.avisos[0]);
     else if (botao || res.novos) aviso(res.novos ? `${res.novos} lançamento(s) novo(s) do banco` : res.lidos ? 'Tudo em dia com o banco' : 'O banco não enviou movimentações neste período');
     recarregar();
