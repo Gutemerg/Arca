@@ -8,10 +8,11 @@ import capturar from './views/capturar.js';
 import salas from './views/salas.js';
 import financas from './views/financas.js';
 import documentos from './views/documentos.js';
+import treino from './views/treino.js';
 
 registerSW({ immediate: true });
 
-const rotas = { hoje, capturar, salas, financas, documentos };
+const rotas = { hoje, capturar, salas, financas, documentos, treino };
 const tela = document.getElementById('tela');
 const nav = document.getElementById('nav');
 

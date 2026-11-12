@@ -4,6 +4,7 @@ import { aviso } from '../util.js';
 import { estadoNotificacoes, ativarNotificacoes, desativarNotificacoes, notificacaoTeste } from '../notificacoes.js';
 
 const ICONES = {
+  treino: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
   financas: '<path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1z"/><path d="M4 7l11-3v3M16 13h1"/>',
   documentos: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
   saude: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
@@ -18,6 +19,7 @@ const ICONES = {
 const SALAS = [
   { id: 'financas', nome: 'Finanças', desc: 'Gastos, contas, assinaturas', pronta: true },
   { id: 'documentos', nome: 'Documentos', desc: 'Cofre com validades', pronta: true },
+  { id: 'treino', nome: 'Treino', desc: 'Musculação, cargas e evolução', pronta: true },
   { id: 'saude', nome: 'Saúde', desc: 'Remédios, consultas, exames' },
   { id: 'casa', nome: 'Casa', desc: 'Contas, mercado, manutenção' },
   { id: 'veiculo', nome: 'Veículo', desc: 'Revisão, seguro, combustível' },

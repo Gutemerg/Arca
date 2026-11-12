@@ -215,3 +215,31 @@ h2 { margin: 0; font-size: 17px; font-weight: 800; }
 .item-check[aria-pressed="true"] .hora-rotina { color: var(--suave); }
 .btn-editar { flex: none; width: 44px; height: 44px; border: 0; background: none; color: var(--suave); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 12px; }
 .btn-editar svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+
+/* ===== Treino ===== */
+.exec { position: relative; display: block; overflow: hidden; background: #fff; border-radius: 14px; border: 1px solid var(--borda); flex: none; }
+.exec img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.exec img:nth-child(2) { animation: exec-alterna 1.8s ease-in-out infinite; }
+@keyframes exec-alterna { 0%, 38% { opacity: 0; } 50%, 88% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .exec img:nth-child(2) { animation-duration: 4s; } }
+.exec.mini { width: 52px; height: 40px; border-radius: 10px; }
+.exec.media { width: 100%; aspect-ratio: 3 / 2; max-height: 200px; }
+.exec.grande { width: 100%; aspect-ratio: 3 / 2; }
+.exec-btn { padding: 0; border: 0; background: none; cursor: zoom-in; display: block; }
+.exec-btn.largo { width: 100%; }
+.folha-fundo .item-check[aria-pressed="true"] .t { text-decoration: none; color: inherit; }
+
+.series { display: flex; flex-direction: column; gap: 6px; }
+.serie { display: grid; grid-template-columns: 28px minmax(0,1fr) minmax(0,1fr) 46px; gap: 6px; align-items: center; padding: 4px; border-radius: 12px; }
+.serie.cab { font-size: 11px; font-weight: 700; color: var(--suave); padding-bottom: 0; }
+.serie.cab span:nth-child(n+2) { text-align: center; }
+.serie .n { font-weight: 800; text-align: center; color: var(--suave); }
+.serie.feita { background: var(--verde-fundo); }
+.passo { display: flex; align-items: center; border: 1px solid var(--campo-borda); background: var(--campo-fundo); border-radius: 12px; min-width: 0; }
+.passo button { width: 34px; min-height: 44px; border: 0; background: none; font-size: 18px; font-weight: 700; color: var(--texto); cursor: pointer; flex: none; }
+.passo input { width: 100%; min-width: 0; border: 0; background: none; text-align: center; font-size: 16px; font-weight: 700; color: var(--texto); padding: 0; }
+.serie .check { width: 46px; height: 44px; border-radius: 12px; border: 2px solid var(--check-borda); background: none; font-size: 18px; font-weight: 800; color: var(--suave); cursor: pointer; }
+.serie .check[aria-pressed="true"] { background: var(--verde); border-color: var(--verde); color: var(--sobre-verde); }
+.descanso { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom)); width: calc(100% - 32px); max-width: 488px; z-index: 15; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 14px; border-radius: 18px; background: var(--texto); color: var(--card); box-shadow: 0 8px 24px rgba(0,0,0,.25); font-size: 15px; }
+.descanso b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.descanso button { min-height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.3); background: none; color: inherit; font-weight: 700; cursor: pointer; }
