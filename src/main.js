@@ -9,6 +9,7 @@ import salas from './views/salas.js';
 import financas from './views/financas.js';
 import documentos from './views/documentos.js';
 import treino from './views/treino.js';
+import { sincronizarBancoAuto } from './sincronizacao.js';
 
 registerSW({ immediate: true });
 
@@ -70,6 +71,10 @@ async function render() {
   if (!rotas[nome]) history.replaceState(null, '', '#/hoje');
 
   nav.hidden = false;
+  if (document.body.dataset.logado !== '1') {
+    document.body.dataset.logado = '1';
+    sincronizarBancoAuto(); // abriu o app: puxa o banco em segundo plano
+  }
   // Durante o treino a barra de navegação some, para sobrar espaço para séries e descanso
   document.body.classList.toggle('modo-treino', rota === 'treino' && new URLSearchParams(query).has('treinar'));
   nav.querySelectorAll('a').forEach((a) => {

@@ -288,7 +288,6 @@ async function categoria(nome, tipo) {
 }
 
 // ============ Conta bancária (Open Finance via Meu Pluggy) ============
-const HORAS_AUTO = 12;
 
 function quandoSync(iso) {
   if (!iso) return 'ainda não sincronizou';
@@ -340,7 +339,6 @@ async function sincronizar(botao) {
   }
 }
 
-let autoFeito = false;
 
 function ligarBanco(tela, bancos) {
   tela.querySelector('#sync-banco')?.addEventListener('click', (e) => sincronizar(e.currentTarget));
@@ -393,12 +391,6 @@ function ligarBanco(tela, bancos) {
     recarregar();
   }));
 
-  // Sincroniza sozinho ao abrir Finanças, no máximo a cada 12 horas
-  const velha = bancos.some((b) => !b.ultima_sync || Date.now() - new Date(b.ultima_sync) > HORAS_AUTO * 3600000);
-  if (bancos.length && velha && !autoFeito) {
-    autoFeito = true;
-    sincronizar(null);
-  }
 }
 
 // Abre a janela da Pluggy (Pluggy Connect) dentro da Arca e devolve o item conectado
