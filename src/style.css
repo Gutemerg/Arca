@@ -242,7 +242,7 @@ body.sem-rolagem { overflow: hidden; }
 .tr-cab h1 { flex: 1; font-size: 22px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* início */
-.tr-hero { position: relative; overflow: hidden; display: flex; align-items: flex-end; gap: 12px; padding: 20px 18px 18px; border-radius: 22px; color: #fff; min-height: 150px; background: linear-gradient(90deg, rgba(4,36,25,.92) 0%, rgba(4,36,25,.7) 42%, rgba(4,36,25,0) 75%), url('/treino-hero.webp') 75% 40% / cover no-repeat, #06291d; box-shadow: 0 10px 28px rgba(6,41,29,.25); }
+.tr-hero { position: relative; overflow: hidden; display: flex; align-items: flex-end; gap: 12px; padding: 20px 18px 18px; border-radius: 22px; color: #fff; min-height: 150px; background: linear-gradient(90deg, rgba(4,36,25,.55) 0%, rgba(4,36,25,.25) 45%, rgba(4,36,25,0) 70%), url('/treino-hero.webp') 85% 50% / cover no-repeat, #06291d; box-shadow: 0 10px 28px rgba(6,41,29,.25); }
 .tr-hero-txt { display: flex; flex-direction: column; gap: 6px; flex: 1; position: relative; z-index: 1; }
 .tr-hero-sobre { font-size: 13px; font-weight: 600; opacity: .85; }
 .tr-hero-tit { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
