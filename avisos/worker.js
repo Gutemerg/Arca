@@ -65,7 +65,7 @@ async function encrypt(sub, texto) {
 }
 
 async function enviar(aviso, env) {
-  const corpo = await encrypt(aviso, JSON.stringify({ titulo: aviso.titulo, detalhe: aviso.detalhe, link: aviso.link }));
+  const corpo = await encrypt(aviso, JSON.stringify({ titulo: aviso.titulo, detalhe: aviso.detalhe, link: aviso.link, tipo: aviso.tipo, id: aviso.item_id, tentativa: aviso.tentativa }));
   const r = await fetch(aviso.endpoint, {
     method: 'POST',
     headers: {

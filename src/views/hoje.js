@@ -1,8 +1,20 @@
 import { db, q } from '../db.js';
 import { esc, reais, reaisCurto, hojeISO, inicioMesISO, quando, dataLonga, saudacao, aviso, folha } from '../util.js';
 
-export default async function hoje(tela, { sessao }) {
+export default async function hoje(tela, { sessao, params }) {
   const hj = hojeISO();
+
+  // Veio do botão "Feito" da notificação: marca e limpa o endereço
+  const feito = params?.get('feito');
+  if (feito) {
+    const [tipo, id] = feito.split(':');
+    try {
+      if (tipo === 'rotina') await q(db.from('habito_registros').upsert({ habito_id: id, data: hj }, { onConflict: 'habito_id,data', ignoreDuplicates: true }));
+      if (tipo === 'tarefa') await q(db.from('tarefas').update({ concluida_em: new Date().toISOString() }).eq('id', id));
+      aviso('Marcado como feito');
+    } catch (e) { aviso('Não consegui marcar: ' + e.message); }
+    history.replaceState(null, '', '#/hoje');
+  }
   const em5 = hojeISO(5), em30 = hojeISO(30);
 
   const [contas, docs, consultas, lancs, tarefas, habitos, regs, alertasDb, bancos] = await Promise.all([
