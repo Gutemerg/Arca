@@ -44,9 +44,11 @@ const P = {
   mais: '<path d="M12 5v14M5 12h14"/>',
   historico: '<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5M3.5 3.5v5h5M12 8v4l3 2"/>',
   grafico: '<path d="M4 19h16M6 15l4-4 3 3 5-6"/>',
-  lixo: '<path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/>'
+  lixo: '<path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/>',
+  braco: '<path d="M4 18.5c1.6-3.4 4-5.2 7.2-5.4l-1.4-4.6c-.4-1.4.3-2.6 1.6-3l2.4-.8c.9-.3 1.6.4 1.4 1.3l-.5 1.6-2 .3.9 3.6c2.6-.9 5.2.4 5.9 3 .6 2.5-1 4.5-3.7 4.5H5.2c-.8 0-1.4-.3-1.2-.5z"/>',
+  seta: '<path d="M5 19L19 5M10 5h9v9"/>'
 };
-const CHEIOS = new Set(['menu', 'play']);
+const CHEIOS = new Set(['menu', 'play', 'braco']);
 const ic = (n, cls = '') => `<svg viewBox="0 0 24 24" class="ic ${CHEIOS.has(n) ? 'cheio' : ''} ${cls}" aria-hidden="true">${P[n]}</svg>`;
 
 const letraDe = (t, i) => (t.nome.match(/treino\s+([a-z0-9])\b/i)?.[1] || String.fromCharCode(65 + (i % 26))).toUpperCase();
@@ -178,7 +180,7 @@ async function inicio(tela) {
   tela.innerHTML = `
     <header class="cabeca" style="align-items:center">
       <h1>Treinos</h1>
-      <button type="button" class="btn pequeno suave" id="novo">${ic('mais')} Treino</button>
+      <span style="display:flex;gap:8px;align-items:center"><a class="ic-btn verde grande" href="#/treino?evolucao=resumo" aria-label="Evolução e histórico">${ic('barras')}</a><button type="button" class="btn pequeno suave" id="novo">${ic('mais')} Treino</button></span>
     </header>
 
     <section class="tr-hero" aria-label="Meta da semana">
@@ -192,7 +194,6 @@ async function inicio(tela) {
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="${raio}" class="trilho"/><circle cx="12" cy="12" r="${raio}" class="valor" stroke-dasharray="${circ}" stroke-dashoffset="${circ * (1 - pct / 100)}"/></svg>
         <b>${feitosSemana}/${meta}</b>
       </span>
-      <svg class="tr-hero-arte" viewBox="0 0 120 80" aria-hidden="true"><rect x="8" y="14" width="16" height="52" rx="6"/><rect x="26" y="22" width="10" height="36" rx="4"/><rect x="36" y="35" width="48" height="10" rx="5"/><rect x="84" y="22" width="10" height="36" rx="4"/><rect x="96" y="14" width="16" height="52" rx="6"/></svg>
     </section>
 
     <section class="card tr-semana" aria-labelledby="h-semana">
@@ -971,7 +972,7 @@ function pintarDescanso(ociosoMs) {
   const ms = ativo ? restante() : (ociosoMs ?? (Number(box.dataset.ocioso) || 0));
   if (!ativo && ociosoMs != null) box.dataset.ocioso = ociosoMs;
   document.getElementById('desc-valor').textContent = duracaoTxt(ativo ? ms + 999 : Number(box.dataset.ocioso));
-  document.getElementById('desc-rot').textContent = ativo ? (descanso.pausa != null ? 'Descanso pausado' : 'Tempo de descanso') : 'Descanso';
+  document.getElementById('desc-rot').textContent = ativo ? (descanso.pausa != null ? 'Descanso pausado' : 'Tempo de descanso') : 'Tempo de descanso';
   const play = document.getElementById('desc-play');
   const pausado = !ativo || descanso.pausa != null;
   play.innerHTML = ic(pausado ? 'play' : 'pausa');
@@ -1087,10 +1088,10 @@ function resumoHTML(sessoes, series, treinos, dias) {
 
   return `
     <section class="tr-kpis">
-      <div class="tr-kpi">${ic('calendario')}<b>${sessoes.length}</b><span class="mini">Treinos</span></div>
-      <div class="tr-kpi">${ic('fogo')}<b>${kcal.toLocaleString('pt-BR')}</b><span class="mini">Calorias (estim.)</span></div>
-      <div class="tr-kpi">${ic('tendencia')}<b>${evolMedia == null ? '—' : sinal(evolMedia) + '%'}</b><span class="mini">Evolução de carga</span></div>
-      <div class="tr-kpi">${ic('barras')}<b>${freq}%</b><span class="mini">Frequência</span></div>
+      <div class="tr-kpi">${ic('calendario', 'k-verde')}<b>${sessoes.length}</b><span class="mini">Treinos</span></div>
+      <div class="tr-kpi">${ic('fogo', 'k-fogo')}<b>${kcal.toLocaleString('pt-BR')}</b><span class="mini">Calorias (estim.)</span></div>
+      <div class="tr-kpi">${ic('tendencia', 'k-verde')}<b>${evolMedia == null ? '—' : sinal(evolMedia) + '%'}</b><span class="mini">Evolução de carga</span></div>
+      <div class="tr-kpi">${ic('barras', 'k-verde')}<b>${freq}%</b><span class="mini">Frequência</span></div>
     </section>
 
     <section class="card tr-freq" aria-labelledby="h-freq">
@@ -1106,7 +1107,7 @@ function resumoHTML(sessoes, series, treinos, dias) {
       <h2 id="h-evol">Principais evoluções</h2>
       ${top.length ? top.map((e) => `
         <a class="tr-evol" href="#/treino?exercicio=${encodeURIComponent(e.nome)}">
-          <span class="tr-evol-ic">${ic('tendencia')}</span>
+          <span class="tr-evol-ic">${ic('seta')}</span>
           <span class="col"><span class="t">${esc(e.nome)}</span><span class="mini">+${fmt(e.ultima - e.primeira)} kg (${fmt(e.primeira)} → ${fmt(e.ultima)} kg)</span></span>
           <span class="tr-evol-pct">+${e.pct}%</span>
         </a>`).join('') : '<p class="mini" style="margin:0">Repita um exercício em pelo menos dois treinos do período para ver a evolução de carga.</p>'}
